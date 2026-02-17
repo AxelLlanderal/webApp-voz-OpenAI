@@ -181,3 +181,46 @@ body{
   .main-card{ padding: 20px; }
   .command{ font-size: 2.15rem; }
 }
+.speaker-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .25s ease;
+  border: 1px solid rgba(255,255,255,.25);
+}
+
+.speaker-btn:hover {
+  background: rgba(255,255,255,.15);
+  transform: scale(1.08);
+}
+.nav-hint{
+  color: rgba(255,255,255,.78);
+  font-size: .9rem;
+  padding: .32rem .65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  backdrop-filter: blur(8px);
+}
+
+.speaker-pulse{
+  position: relative;
+}
+
+.speaker-pulse::after{
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.22);
+  opacity: .0;
+  animation: pulse 1.6s ease-out infinite;
+}
+
+@keyframes pulse{
+  0%   { transform: scale(0.92); opacity: .35; }
+  70%  { transform: scale(1.18); opacity: 0; }
+  100% { transform: scale(1.18); opacity: 0; }
+}

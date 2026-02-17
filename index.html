@@ -1,9 +1,10 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" type="image/png" href="favaicon.png"> 
+  <link rel="icon" type="image/png" href="favaicon.png">
   <title>Control por Voz</title>
 
   <!-- Bootstrap + Icons -->
@@ -20,6 +21,7 @@
 
   <nav class="navbar navbar-dark navbar-glass sticky-top">
     <div class="container py-2 d-flex justify-content-between align-items-center">
+
       <div class="d-flex align-items-center gap-2">
         <span class="brand-dot"></span>
         <span class="navbar-brand m-0 fw-semibold">
@@ -28,12 +30,30 @@
         </span>
       </div>
 
-      <!-- MISMO ID -->
-      <span id="modePill" class="pill pill-idle">
-        <i class="bi bi-circle-fill me-2"></i>Listo
-      </span>
+      <div class="d-flex align-items-center gap-3">
+
+        <!-- 🛈 PISTA PARA EL USUARIO -->
+        <span class="nav-hint d-none d-md-inline">
+        Presiona la bocina para escuchar cómo usarlo <span class="me-1">👉</span>
+        </span>
+
+        <!-- 🔊 BOTÓN DE AUDIO -->
+        <button id="infoVoiceBtn" class="btn btn-sm btn-outline-light rounded-circle speaker-btn speaker-pulse"
+          type="button" title="Presiona para escuchar instrucciones">
+          <i class="bi bi-volume-up-fill"></i>
+        </button>
+
+        <!-- ESTADO -->
+        <span id="modePill" class="pill pill-idle">
+          <i class="bi bi-circle-fill me-2"></i>Listo
+        </span>
+
+      </div>
+
+
     </div>
   </nav>
+
 
   <main class="container py-5">
     <div class="mx-auto main-card">
@@ -73,7 +93,10 @@
 
       <div class="mt-4 small text-secondary tips">
         <span class="kbd">Alpha</span> despierta •
-        Prueba: <span class="kbd">avanzar</span> <span class="kbd">detenter</span> <span class="kbd">90 derecha</span> <span class="kbd">90 izquierda</span><span class="kbd">retroceder</span><span class="kbd">vuelta izquierda</span><span class="kbd">vuelta derecha</span><span class="kbd">360 izquierda</span><span class="kbd">360 derecha</span>
+        Prueba: <span class="kbd">avanzar</span> <span class="kbd">detenter</span> <span class="kbd">90 derecha</span>
+        <span class="kbd">90 izquierda</span><span class="kbd">retroceder</span><span class="kbd">vuelta
+          izquierda</span><span class="kbd">vuelta derecha</span><span class="kbd">360 izquierda</span><span
+          class="kbd">360 derecha</span>
       </div>
     </div>
   </main>
@@ -87,4 +110,5 @@
 
   <script src="./app.js"></script>
 </body>
+
 </html>
