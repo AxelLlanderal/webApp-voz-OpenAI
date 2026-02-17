@@ -1,17 +1,19 @@
 document.addEventListener("DOMContentLoaded", () => {
   /* =====================================================
-     🔑 AHORA LA API KEY SE OBTIENE DE MOCKAPI (NO HARDcode)
+     🔑 API KEY DESDE MOCKAPI (NO HARDcode)
   ===================================================== */
   const MOCKAPI_URL = "https://698def67aded595c253090f9.mockapi.io/api/v1/apiKey";
-  let OPENAI_API_KEY = ""; // se llenará al cargar MockAPI
-  let apiKeyPromise = null; // evita múltiples solicitudes
+  let OPENAI_API_KEY = "";      // se llena al cargar MockAPI
+  let apiKeyPromise = null;     // evita múltiples solicitudes
   /* ===================================================== */
 
   const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 
-  const WAKE_WORD = "alfa";
+  // Wake Word
+  const WAKE_WORD = "alfa";     // lo que detecta en texto (speech-to-text)
   const IDLE_MS = 10000;
 
+  // ÚNICAS salidas permitidas (validación)
   const ALLOWED_OUTPUTS = new Set([
     "avanzar",
     "retroceder",
@@ -25,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "Orden no reconocida",
   ]);
 
-  // UI (con null-safe)
+  // UI (null-safe)
   const modePill = document.getElementById("modePill");
   const transcriptEl = document.getElementById("transcript");
   const commandEl = document.getElementById("command");
@@ -53,11 +55,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
-     ✅ CARGA DE API KEY DESDE MOCKAPI (1er registro)
-     - Espera un array: [{ apikey: "...", id: "1" }, ...]
+     ✅ CARGA API KEY DESDE MOCKAPI (1er registro)
+     Espera: [{ apikey: "...", id: "1" }, ...]
   ===================================================== */
   async function loadApiKeyFromMockAPI() {
-    // Si ya hay una promesa en curso, reutilízala
     if (apiKeyPromise) return apiKeyPromise;
 
     apiKeyPromise = (async () => {
@@ -68,8 +69,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!r.ok) throw new Error(`MockAPI HTTP ${r.status}`);
 
         const data = await r.json();
-
-        // MockAPI suele devolver un arreglo
         const first = Array.isArray(data) ? data[0] : data;
 
         const key = first?.apikey;
@@ -93,28 +92,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Dispara la carga desde el inicio (sin detener el resto)
   loadApiKeyFromMockAPI();
-  /* ===================================================== */
-
-  // ✅ Mapeo local de sinónimos (sigue igual)
-  function localMapCommand(t) {
-    const s = normalize(t);
-
-    // movimientos básicos
-    if (/(^|\b)(adelante|avanza|avance|avanzar|go|enfrente|en frente|recto|derecho|sigue|continua|continúe)(\b|$)/.test(s)) return "avanzar";
-    if (/(^|\b)(atrás|atras|retrocede|retroceder|para atrás|para atras|back|reversa)(\b|$)/.test(s)) return "retroceder";
-    if (/(^|\b)(alto|detente|detener|stop|parar|para|frena)(\b|$)/.test(s)) return "detener";
-
-    // vueltas
-    if (/(^|\b)(derecha)(\b|$)/.test(s) && /(90|noventa)/.test(s)) return "90° derecha";
-    if (/(^|\b)(izquierda)(\b|$)/.test(s) && /(90|noventa)/.test(s)) return "90° izquierda";
-    if (/(^|\b)(derecha)(\b|$)/.test(s) && /(360|trescientos sesenta)/.test(s)) return "360° derecha";
-    if (/(^|\b)(izquierda)(\b|$)/.test(s) && /(360|trescientos sesenta)/.test(s)) return "360° izquierda";
-
-    if (/(^|\b)(vuelta|gira|girar|giro)(\b|$)/.test(s) && /derecha/.test(s)) return "vuelta derecha";
-    if (/(^|\b)(vuelta|gira|girar|giro)(\b|$)/.test(s) && /izquierda/.test(s)) return "vuelta izquierda";
-
-    return null; // no pudo
-  }
 
   /* =========================
      SPEECH RECOGNITION
@@ -174,7 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const lower = normalize(raw);
 
-    // suspendido: solo wake word
+    // Suspendido: solo wake word
     if (suspended) {
       if (lower.includes(WAKE_WORD)) {
         suspended = false;
@@ -187,24 +164,14 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // activo: si dice wake word, ignora
+    // Activo: si dice wake word, ignora (solo mantiene activo)
     if (lower.includes(WAKE_WORD)) {
       setSubstatus("Wake word detectada (activo).");
       return;
     }
 
-    // ✅ primero intenta mapeo local
-    const localCmd = localMapCommand(lower);
-    if (localCmd) {
-      safeText(commandEl, localCmd);
-      setSubstatus("Orden reconocida (local).");
-      return;
-    }
-
-    // si no, usa OpenAI
+    // ✅ IA interpreta TODO (sin listas de sinónimos hardcodeadas)
     setSubstatus("Procesando con IA…");
-
-    // Asegura que la key ya se intentó cargar (si no estaba lista)
     const key = OPENAI_API_KEY || (await loadApiKeyFromMockAPI());
     const cmd = await classifyWithOpenAI(raw, key);
 
@@ -226,9 +193,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return "Orden no reconocida";
     }
 
+    // 👇 Importante: NO listamos sinónimos. Pedimos comprensión semántica total,
+    // incluyendo negación, comparación, ironía simple, “lo contrario de…”, etc.
     const system = `
-Eres un clasificador de comandos de voz.
-Responde ÚNICAMENTE con EXACTAMENTE una de estas opciones (una sola línea):
+Eres un intérprete de intención para un sistema de control por voz.
+Tu misión es leer (o inferir desde una transcripción con errores) la intención del usuario y mapearla al comando de control MÁS ADECUADO.
+
+Debes responder ÚNICAMENTE con EXACTAMENTE UNA de estas opciones (una sola línea y nada más):
 avanzar
 retroceder
 detener
@@ -240,7 +211,21 @@ vuelta izquierda
 360° izquierda
 Orden no reconocida
 
-No agregues explicaciones, comillas, ni texto extra.
+Criterio general:
+- Comprende el significado completo del mensaje, aunque sea una frase larga o rara.
+- Reconoce sinónimos, expresiones equivalentes, modismos, y palabras parecidas por errores del micrófono.
+- Maneja negaciones y “lo contrario de…”.
+  Ejemplo: “haz lo contrario de ir hacia atrás” ⇒ avanzar.
+- Si el usuario pide un giro con ángulo, elige 90° o 360° según corresponda.
+- Si pide girar sin ángulo específico, usa “vuelta derecha” o “vuelta izquierda”.
+- Si pide parar, pausar, frenar o inmovilizar, usa “detener”.
+- Si el mensaje contiene varias acciones, elige la acción PRINCIPAL o la primera orden clara.
+- Si no hay intención clara o no encaja con el set, responde “Orden no reconocida”.
+
+Prohibido:
+- No expliques nada.
+- No uses comillas.
+- No agregues texto extra.
 `.trim();
 
     try {
@@ -269,9 +254,83 @@ No agregues explicaciones, comillas, ni texto extra.
         "";
 
       const result = String(out).trim();
+
+      // Validación dura: si no coincide EXACTO, no se acepta
       return ALLOWED_OUTPUTS.has(result) ? result : "Orden no reconocida";
     } catch {
       return "Orden no reconocida";
     }
+  }
+
+  /* =====================================================
+     🔊 VOZ EXPLICATIVA DEL SISTEMA (ALFA) — MEJORADA
+  ===================================================== */
+  const infoBtn = document.getElementById("infoVoiceBtn");
+
+  function pickNiceSpanishVoice() {
+    const voices = speechSynthesis.getVoices() || [];
+
+    const preferred = voices
+      .filter(v => (v.lang || "").toLowerCase().startsWith("es"))
+      .sort((a, b) => {
+        const an = a.name.toLowerCase();
+        const bn = b.name.toLowerCase();
+
+        const score = (n) => {
+          let s = 0;
+          if (n.includes("natural")) s += 6;
+          if (n.includes("google")) s += 5;
+          if (n.includes("microsoft")) s += 4;
+          if (n.includes("mex") || n.includes("méx")) s += 3;
+          if (n.includes("spanish") || n.includes("español")) s += 2;
+          return s;
+        };
+
+        return score(bn) - score(an);
+      });
+
+    return preferred[0] || null;
+  }
+
+  function speakIntro() {
+    const texto = [
+      "Hola. Mi nombre es Alfa.",
+      "Soy un programa de control por voz impulsado por inteligencia artificial.",
+      "Escucho tus instrucciones desde el micrófono y las interpreto para convertirlas en acciones.",
+      "Si no detecto voz durante unos segundos, entro en modo suspendido.",
+      "Para despertarme, solo di: Alfa.",
+      "En la parte de abajo están las posibles opciones.",
+      "Cuando quieras, estoy listo para recibir tus órdenes."
+    ].join("  ");
+
+    const msg = new SpeechSynthesisUtterance(texto);
+
+    msg.lang = "es-MX";
+    msg.rate = 0.92;   // natural y claro
+    msg.pitch = 1.05;  // agradable (tu 1.4 sonaba muy “agudo/ardilla”)
+    msg.volume = 1;
+
+    const chosenVoice = pickNiceSpanishVoice();
+    if (chosenVoice) msg.voice = chosenVoice;
+
+    speechSynthesis.cancel();
+    speechSynthesis.speak(msg);
+  }
+
+  if ("speechSynthesis" in window && infoBtn) {
+    let voicesReady = false;
+
+    const ensureVoices = () => {
+      const v = speechSynthesis.getVoices();
+      if (v && v.length) voicesReady = true;
+    };
+
+    ensureVoices();
+    speechSynthesis.onvoiceschanged = () => ensureVoices();
+
+    infoBtn.addEventListener("click", () => {
+      if (!voicesReady) setTimeout(speakIntro, 150);
+      else speakIntro();
+    });
   }
 });
