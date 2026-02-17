@@ -262,75 +262,112 @@ Prohibido:
     }
   }
 
-  /* =====================================================
-     🔊 VOZ EXPLICATIVA DEL SISTEMA (ALFA) — MEJORADA
-  ===================================================== */
-  const infoBtn = document.getElementById("infoVoiceBtn");
+/* =====================================================
+   🔊 VOZ EXPLICATIVA DEL SISTEMA (ALFA) — SUPER ROBUSTA
+===================================================== */
+const infoBtn = document.getElementById("infoVoiceBtn");
 
-  function pickNiceSpanishVoice() {
-    const voices = speechSynthesis.getVoices() || [];
+function getBestSpanishVoice() {
+  const voices = window.speechSynthesis.getVoices() || [];
+  const es = voices.filter(v => (v.lang || "").toLowerCase().startsWith("es"));
 
-    const preferred = voices
-      .filter(v => (v.lang || "").toLowerCase().startsWith("es"))
-      .sort((a, b) => {
-        const an = a.name.toLowerCase();
-        const bn = b.name.toLowerCase();
+  const score = (v) => {
+    const n = (v.name || "").toLowerCase();
+    let s = 0;
+    if (n.includes("natural")) s += 6;
+    if (n.includes("google")) s += 5;
+    if (n.includes("microsoft")) s += 4;
+    if (n.includes("mex") || n.includes("méx")) s += 3;
+    if (n.includes("spanish") || n.includes("español")) s += 2;
+    return s;
+  };
 
-        const score = (n) => {
-          let s = 0;
-          if (n.includes("natural")) s += 6;
-          if (n.includes("google")) s += 5;
-          if (n.includes("microsoft")) s += 4;
-          if (n.includes("mex") || n.includes("méx")) s += 3;
-          if (n.includes("spanish") || n.includes("español")) s += 2;
-          return s;
-        };
+  es.sort((a, b) => score(b) - score(a));
+  return es[0] || null;
+}
 
-        return score(bn) - score(an);
-      });
+function waitForVoices(timeoutMs = 1500) {
+  return new Promise((resolve) => {
+    const synth = window.speechSynthesis;
 
-    return preferred[0] || null;
-  }
+    // Si ya hay voces, listo
+    const existing = synth.getVoices();
+    if (existing && existing.length) return resolve(existing);
 
-  function speakIntro() {
-    const texto = [
-      "Hola. Mi nombre es Alfa.",
-      "Soy un programa de control por voz impulsado por inteligencia artificial.",
-      "Escucho tus instrucciones desde el micrófono y las interpreto para convertirlas en acciones.",
-      "Si no detecto voz durante unos segundos, entro en modo suspendido.",
-      "Para despertarme, solo di: Alfa.",
-      "En la parte de abajo están las posibles opciones.",
-      "Cuando quieras, estoy listo para recibir tus órdenes."
-    ].join("  ");
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      synth.onvoiceschanged = null;
+      resolve(synth.getVoices() || []);
+    }, timeoutMs);
 
-    const msg = new SpeechSynthesisUtterance(texto);
-
-    msg.lang = "es-MX";
-    msg.rate = 0.92;   // natural y claro
-    msg.pitch = 1.05;  // agradable (tu 1.4 sonaba muy “agudo/ardilla”)
-    msg.volume = 1;
-
-    const chosenVoice = pickNiceSpanishVoice();
-    if (chosenVoice) msg.voice = chosenVoice;
-
-    speechSynthesis.cancel();
-    speechSynthesis.speak(msg);
-  }
-
-  if ("speechSynthesis" in window && infoBtn) {
-    let voicesReady = false;
-
-    const ensureVoices = () => {
-      const v = speechSynthesis.getVoices();
-      if (v && v.length) voicesReady = true;
+    synth.onvoiceschanged = () => {
+      if (done) return;
+      const v = synth.getVoices();
+      if (v && v.length) {
+        done = true;
+        clearTimeout(timer);
+        synth.onvoiceschanged = null;
+        resolve(v);
+      }
     };
 
-    ensureVoices();
-    speechSynthesis.onvoiceschanged = () => ensureVoices();
+    // “pica” al navegador para que cargue voces
+    synth.getVoices();
+  });
+}
 
-    infoBtn.addEventListener("click", () => {
-      if (!voicesReady) setTimeout(speakIntro, 150);
-      else speakIntro();
-    });
-  }
+async function speakIntro() {
+  const synth = window.speechSynthesis;
+
+  // Esperar voces (en GitHub Pages a veces llegan tarde)
+  await waitForVoices();
+
+  const texto = [
+    "Hola. Mi nombre es Alfa.",
+    "Soy un programa de control por voz impulsado por inteligencia artificial.",
+    "Escucho tus instrucciones desde el micrófono y las interpreto para convertirlas en acciones.",
+    "Si no detecto voz durante unos segundos, entro en modo suspendido.",
+    "Para despertarme, solo di: Alfa.",
+    "En la parte de abajo están las posibles instrucciones.",
+    "Cuando quieras, estoy listo para recibir tus órdenes."
+  ].join("  ");
+
+  const msg = new SpeechSynthesisUtterance(texto);
+  msg.lang = "es-MX";
+  msg.rate = 0.92;
+  msg.pitch = 1.05; // bonito y natural
+  msg.volume = 1;
+
+  const v = getBestSpanishVoice();
+  if (v) msg.voice = v;
+
+  // Feedback opcional en UI
+  // infoBtn?.classList.add("speaking");
+
+  // En algunos navegadores ayuda cancelar y hablar con micro delay
+  synth.cancel();
+  setTimeout(() => synth.speak(msg), 80);
+
+  msg.onend = () => {
+    // infoBtn?.classList.remove("speaking");
+  };
+  msg.onerror = () => {
+    // infoBtn?.classList.remove("speaking");
+  };
+}
+
+if (infoBtn && "speechSynthesis" in window) {
+  infoBtn.addEventListener("click", async () => {
+    try {
+      await speakIntro();
+    } catch (e) {
+      console.warn("TTS error:", e);
+    }
+  });
+} else {
+  console.warn("No se encontró #infoVoiceBtn o no hay speechSynthesis");
+}
+
 });
